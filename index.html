@@ -11343,9 +11343,9 @@ function importExcel(f){
       let errRow=0,baseMaxId=state.data.filter(d=>d.id&&d.id.startsWith("YC-")).reduce((max,d)=>{const n=parseInt(d.id.slice(3));return n>max?n:max;},0);
       for(let i=0;i<data.length;i++){
         const row=data[i];
-        const name=row["口径名称"]||row["口径名称 "]||"";
-        const notes=row["指标定义"]||row["指标定义 "]||"";
-        const sql=row["SQL 代码"]||row["SQL 代码 "]||"";
+        const name=String(row["口径名称"]||row["口径名称 "]||"");
+        const notes=String(row["指标定义"]||row["指标定义 "]||"");
+        const sql=String(row["SQL 代码"]||row["SQL 代码 "]||"");
         if(!name||!notes||!sql){errRow=i+2;break;}
         const category=autoDetectCategory(name,notes);
         baseMaxId++;
@@ -11375,7 +11375,7 @@ function importJson(f){
     try{
       const imp=JSON.parse(e.target.result);if(!Array.isArray(imp))throw new Error("格式错误");
       const newItems=[],conflicts=[];
-      imp.forEach(i=>{if(!i.id||!i.name)return;
+      imp.forEach(i=>{if(!i.id||!i.name)return;i.name=String(i.name);
         const existing=state.data.find(d=>d.name===i.name);
         if(existing){conflicts.push({imported:i,existing});}
         else{newItems.push(i);}
