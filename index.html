@@ -11256,7 +11256,12 @@ function saveForm(){
     owner:'',updated:new Date().toISOString().slice(0,10),
     notes:document.getElementById('f-notes').value.trim(),sql};
   if(state.modalType==='edit'){const idx=state.data.findIndex(d=>d.id===id);if(idx>=0)state.data[idx]=item;showToast('已更新')}
-  else{if(state.data.find(d=>d.id===finalId)){alert('ID 已存在');return}state.data.push(item);showToast('已添加')}
+  else{
+    if(state.data.find(d=>d.id===finalId)){alert('ID 已存在');return}
+    const sameName=state.data.find(d=>d.name===name);
+    if(sameName&&!confirm(`⚠️ 口径名称「${name}」与已有条目 ${sameName.id} 相同，是否仍要继续添加？`))return;
+    state.data.push(item);showToast('已添加');
+  }
   saveData();closeModal();
 }
 
