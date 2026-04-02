@@ -11320,6 +11320,7 @@ function importJson(f){
 
 async function uploadToGitHub(){
   const OWNER='wenjingfan94',REPO='ent-metrics',FILE='data.json';
+  const ghHeaders=token=>({'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'});
   let token=localStorage.getItem('gh_pat');
   if(!token){
     token=prompt('请输入 GitHub Personal Access Token\n（需要 Contents 写权限，仅保存在本地浏览器）\n\n获取方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens');
@@ -11329,24 +11330,34 @@ async function uploadToGitHub(){
   }
   const btn=document.getElementById('gh-upload-btn');
   if(btn){btn.classList.add('uploading');btn.textContent='⏳ 上传中...';btn.disabled=true}
-  const content=btoa(unescape(encodeURIComponent(JSON.stringify(state.data,null,2))));
-  let sha=null;
+  const newContent=btoa(unescape(encodeURIComponent(JSON.stringify(state.data,null,2))));
+  const now=new Date();
+  const ts=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+'_'+String(now.getHours()).padStart(2,'0')+'-'+String(now.getMinutes()).padStart(2,'0')+'-'+String(now.getSeconds()).padStart(2,'0');
+  const committer={name:'ent-metrics',email:'ent-metrics@noreply.github.com'};
   try{
-    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});
-    if(r.ok){const j=await r.json();sha=j.sha}
-  }catch(e){}
-  const body={message:`更新口径数据 ${new Date().toLocaleString('zh-CN')}（${state.data.length}条）`,content,committer:{name:'ent-metrics',email:'ent-metrics@noreply.github.com'}};
-  if(sha)body.sha=sha;
-  try{
-    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.ok){showToast(`✅ 已同步 ${state.data.length} 条到 GitHub`)}
-    else{
-      const err=await r.json();
-      if(r.status===401||r.status===403){localStorage.removeItem('gh_pat');alert('Token 无效或权限不足，请重新输入\n\n错误：'+err.message)}
-      else{alert('上传失败：'+(err.message||r.status))}
+    // 1. 获取当前 data.json（若存在则先归档到历史版本）
+    const cur=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{headers:ghHeaders(token)});
+    if(cur.ok){
+      const curJson=await cur.json();
+      // 2. 将旧数据存入 历史版本/data_<时间戳>.json
+      const archiveBody={message:`归档历史版本 ${ts}`,content:curJson.content.replace(/\n/g,''),committer};
+      await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent('历史版本')}/data_${ts}.json`,{method:'PUT',headers:ghHeaders(token),body:JSON.stringify(archiveBody)});
+      // 3. 用新数据覆盖 data.json
+      const updateBody={message:`更新口径数据 ${ts}（${state.data.length}条）`,content:newContent,sha:curJson.sha,committer};
+      const upRes=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{method:'PUT',headers:ghHeaders(token),body:JSON.stringify(updateBody)});
+      if(upRes.ok){showToast(`✅ 已同步 ${state.data.length} 条，旧版本已归档`)}
+      else{const e=await upRes.json();throw new Error(e.message||upRes.status)}
+    } else {
+      // data.json 不存在，直接创建
+      const createBody={message:`初始化口径数据 ${ts}（${state.data.length}条）`,content:newContent,committer};
+      const cr=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{method:'PUT',headers:ghHeaders(token),body:JSON.stringify(createBody)});
+      if(cr.ok){showToast(`✅ 已同步 ${state.data.length} 条到 GitHub`)}
+      else{const e=await cr.json();throw new Error(e.message||cr.status)}
     }
-  }catch(e){alert('网络错误：'+e.message)}
-  finally{if(btn){btn.classList.remove('uploading');btn.textContent='☁️ 上传到 GitHub';btn.disabled=false}}
+  }catch(e){
+    if(e.message&&(e.message.includes('401')||e.message.includes('403')||e.message.includes('Bad credentials'))){localStorage.removeItem('gh_pat');alert('Token 无效或权限不足，请重新输入\n\n错误：'+e.message)}
+    else{alert('上传失败：'+e.message)}
+  }finally{if(btn){btn.classList.remove('uploading');btn.textContent='☁️ 上传到 GitHub';btn.disabled=false}}
 }
 
 loadData();render();
