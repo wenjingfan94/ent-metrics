@@ -11003,10 +11003,10 @@ function searchItems(query){
   return getFilteredItems().map(item=>{
     let score=0;
     const fields=[
-      {t:item.id.toLowerCase(),w:10},{t:item.name.toLowerCase(),w:8},
-      {t:item.tags.join(' ').toLowerCase(),w:6},{t:item.notes.toLowerCase(),w:4},
-      {t:item.tables.toLowerCase(),w:5},{t:item.category.toLowerCase(),w:3},
-      {t:item.owner.toLowerCase(),w:3},{t:item.sql.toLowerCase(),w:1}
+      {t:(item.id||'').toLowerCase(),w:10},{t:(item.name||'').toLowerCase(),w:8},
+      {t:(item.tags||[]).join(' ').toLowerCase(),w:6},{t:(item.notes||'').toLowerCase(),w:4},
+      {t:(item.tables||'').toLowerCase(),w:5},{t:(item.category||'').toLowerCase(),w:3},
+      {t:(item.owner||'').toLowerCase(),w:3},{t:(item.sql||'').toLowerCase(),w:1}
     ];
     for(const term of terms){for(const f of fields){if(f.t.includes(term)){score+=f.w;if(f.t.startsWith(term))score+=2}}}
     const syn={'毛利':['margin','成本'],'分层':['分级','SA','tier'],'衰退':['流失','挽回','churn'],
@@ -11022,6 +11022,8 @@ function searchItems(query){
 }
 function getFilteredItems(){
   if(state.activeCategory==='all')return state.data;
+  if(state.activeCategory==='yc_all')return state.data.filter(d=>!d.id||!d.id.startsWith('SL-'));
+  if(state.activeCategory==='sl_all')return state.data.filter(d=>d.id&&d.id.startsWith('SL-'));
   return state.data.filter(d=>d.category===state.activeCategory);
 }
 function highlightSQL(sql){
