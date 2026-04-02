@@ -70,6 +70,9 @@ body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-pri
 .btn-ghost:hover{border-color:var(--text-secondary);color:var(--text-primary)}
 .btn-danger{background:rgba(255,107,107,.1);color:var(--red);border:1px solid transparent}
 .btn-danger:hover{border-color:var(--red)}
+.btn-github{background:#24292e;color:#e8e9f0;border:1px solid #444}
+.btn-github:hover{background:#2f363d;border-color:#6C5CE7;transform:translateY(-1px)}
+.btn-github.uploading{opacity:.7;cursor:not-allowed}
 
 .content{flex:1;overflow-y:auto;padding:20px}
 .content::-webkit-scrollbar{width:5px}
@@ -133,6 +136,7 @@ body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-pri
           oninput="handleSearchInput(this.value)" oncompositionstart="window._composing=true" oncompositionend="window._composing=false;handleSearchInput(this.value)" />
       </div>
       <div class="topbar-actions">
+        <button class="btn btn-github" id="gh-upload-btn" onclick="uploadToGitHub()">☁️ 上传到 GitHub</button>
         <button class="btn btn-primary" onclick="openAdd()">+ 新增口径</button>
       </div>
     </div>
@@ -11312,6 +11316,37 @@ function importJson(f){
         if(idx>=0){state.data[idx]=i;u++}else{state.data.push(i);a++}});
       saveData();showToast("✅ 新增"+a+"条，更新"+u+"条");closeModal()
     }catch(err){alert("解析失败："+err.message)}};r.readAsText(f)
+}
+
+async function uploadToGitHub(){
+  const OWNER='wenjingfan94',REPO='ent-metrics',FILE='data.json';
+  let token=localStorage.getItem('gh_pat');
+  if(!token){
+    token=prompt('请输入 GitHub Personal Access Token\n（需要 Contents 写权限，仅保存在本地浏览器）\n\n获取方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens');
+    if(!token)return;
+    token=token.trim();
+    localStorage.setItem('gh_pat',token);
+  }
+  const btn=document.getElementById('gh-upload-btn');
+  if(btn){btn.classList.add('uploading');btn.textContent='⏳ 上传中...';btn.disabled=true}
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(state.data,null,2))));
+  let sha=null;
+  try{
+    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});
+    if(r.ok){const j=await r.json();sha=j.sha}
+  }catch(e){}
+  const body={message:`更新口径数据 ${new Date().toLocaleString('zh-CN')}（${state.data.length}条）`,content,committer:{name:'ent-metrics',email:'ent-metrics@noreply.github.com'}};
+  if(sha)body.sha=sha;
+  try{
+    const r=await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.ok){showToast(`✅ 已同步 ${state.data.length} 条到 GitHub`)}
+    else{
+      const err=await r.json();
+      if(r.status===401||r.status===403){localStorage.removeItem('gh_pat');alert('Token 无效或权限不足，请重新输入\n\n错误：'+err.message)}
+      else{alert('上传失败：'+(err.message||r.status))}
+    }
+  }catch(e){alert('网络错误：'+e.message)}
+  finally{if(btn){btn.classList.remove('uploading');btn.textContent='☁️ 上传到 GitHub';btn.disabled=false}}
 }
 
 loadData();render();
