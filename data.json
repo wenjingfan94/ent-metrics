@@ -4404,5 +4404,18 @@
     "updated": "2026-04-02",
     "notes": "",
     "sql": "111"
+  },
+  {
+    "id": "YC-146",
+    "name": "测试111111",
+    "category": "售前_线索商机",
+    "tags": [],
+    "scenario": "",
+    "tables": "",
+    "frequency": "T+1",
+    "owner": "",
+    "updated": "2026-04-02",
+    "notes": "",
+    "sql": "111"
   }
 ]
