@@ -11004,7 +11004,7 @@ function searchItems(query){
     let score=0;
     const fields=[
       {t:String(item.id||'').toLowerCase(),w:10},{t:String(item.name||'').toLowerCase(),w:8},
-      {t:(item.tags||[]).join(' ').toLowerCase(),w:6},{t:String(item.notes||'').toLowerCase(),w:4},
+      {t:(Array.isArray(item.tags)?item.tags:[]).join(' ').toLowerCase(),w:6},{t:String(item.notes||'').toLowerCase(),w:4},
       {t:String(item.tables||'').toLowerCase(),w:5},{t:String(item.category||'').toLowerCase(),w:3},
       {t:String(item.owner||'').toLowerCase(),w:3},{t:String(item.sql||'').toLowerCase(),w:1}
     ];
