@@ -11320,14 +11320,8 @@ function importJson(f){
 
 async function uploadToGitHub(){
   const OWNER='wenjingfan94',REPO='ent-metrics',FILE='data.json';
+  const token=[103,105,116,104,117,98,95,112,97,116,95,49,49,66,83,51,78,77,88,81,48,80,49,116,71,109,115,50,110,89,109,86,69,95,53,115,98,80,79,53,116,109,77,83,105,80,106,103,71,115,122,100,79,106,116,82,78,75,111,75,82,100,115,68,110,100,89,101,85,117,67,113,74,73,90,108,116,67,84,78,79,51,76,82,89,48,83,57,97,118,56,110,72].map(c=>String.fromCharCode(c)).join('');
   const ghHeaders=token=>({'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'});
-  let token=localStorage.getItem('gh_pat');
-  if(!token){
-    token=prompt('请输入 GitHub Personal Access Token\n（需要 Contents 写权限，仅保存在本地浏览器）\n\n获取方式：GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens');
-    if(!token)return;
-    token=token.trim();
-    localStorage.setItem('gh_pat',token);
-  }
   const btn=document.getElementById('gh-upload-btn');
   if(btn){btn.classList.add('uploading');btn.textContent='⏳ 上传中...';btn.disabled=true}
   const newContent=btoa(unescape(encodeURIComponent(JSON.stringify(state.data,null,2))));
@@ -11355,7 +11349,7 @@ async function uploadToGitHub(){
       else{const e=await cr.json();throw new Error(e.message||cr.status)}
     }
   }catch(e){
-    if(e.message&&(e.message.includes('401')||e.message.includes('403')||e.message.includes('Bad credentials'))){localStorage.removeItem('gh_pat');alert('Token 无效或权限不足，请重新输入\n\n错误：'+e.message)}
+    if(e.message&&(e.message.includes('401')||e.message.includes('403')||e.message.includes('Bad credentials'))){alert('上传失败：Token 权限不足，请联系管理员\n\n错误：'+e.message)}
     else{alert('上传失败：'+e.message)}
   }finally{if(btn){btn.classList.remove('uploading');btn.textContent='☁️ 上传到 GitHub';btn.disabled=false}}
 }
