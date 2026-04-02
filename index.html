@@ -11179,18 +11179,17 @@ function renderImportModal(){
 
 function renderConflictModal(){
   const {conflicts,decisions}=state.pendingImport;
-  const rows=conflicts.map(c=>{
+  const rows=conflicts.map((c,idx)=>{
     const dec=decisions[c.imported.name];
     const nm=escHtml(c.imported.name);
-    const safeName=c.imported.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nm}">${nm}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">与已有条目 <b style="color:var(--accent)">${escHtml(c.existing.id)}</b>「${escHtml(c.existing.name)}」同名</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn ${dec==='overwrite'?'btn-primary':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision('${safeName}','overwrite')">覆盖</button>
-        <button class="btn ${dec==='ignore'?'btn-danger':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision('${safeName}','ignore')">忽略</button>
+        <button class="btn ${dec==='overwrite'?'btn-primary':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision(${idx},'overwrite')">覆盖</button>
+        <button class="btn ${dec==='ignore'?'btn-danger':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision(${idx},'ignore')">忽略</button>
       </div>
     </div>`;
   }).join('');
@@ -11207,8 +11206,11 @@ function renderConflictModal(){
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="confirmImport()">确认导入</button></div>
   </div></div>`;
 }
-function setConflictDecision(name,decision){
-  if(state.pendingImport)state.pendingImport.decisions[name]=decision;
+function setConflictDecision(idx,decision){
+  if(state.pendingImport){
+    const name=state.pendingImport.conflicts[idx].imported.name;
+    state.pendingImport.decisions[name]=decision;
+  }
   render();
 }
 function setAllConflictDecision(decision){
