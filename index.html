@@ -11160,7 +11160,8 @@ function renderImportModal(){
     <div class="modal-body">
       <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7">
         支持 <b>Excel(.xlsx)</b> 或 <b>JSON</b> 格式文件。</p>
-      <p style="font-size:11px;color:var(--accent);margin-bottom:10px">📌 Excel 列名：口径 ID | 名称 | 分类 | 标签 | 指标定义 | SQL 代码 | 负责人</p>
+      <p style="font-size:11px;color:var(--accent);margin-bottom:10px">📌 Excel 列名：名称 | 分类 (下拉) | 指标定义 | SQL 代码</p>
+      <p style="font-size:11px;color:var(--text-muted)">💡 口径 ID 自动生成，按名称判断是否覆盖</p>
       <input type="file" id="impF" accept=".json" style="display:block;width:100%;padding:10px;background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;color:var(--text-primary);cursor:pointer;font-family:var(--font-body)" />
       <p style="font-size:11px;color:var(--text-muted);margin-top:12px">💡 提示：先下载模板文件，按格式填写后再导入</p>
     </div>
@@ -11214,7 +11215,7 @@ function exportMenu(){
 }
 function exportExcel(){
   const data=state.data.map(d=>({
-    "口径 ID":d.id,"名称":d.name,"分类":d.category,"标签":(d.tags||[]).join(","),"指标定义":d.notes||"","SQL 代码":d.sql||"","负责人":d.owner||"","更新频率":d.frequency||"T+1"
+    "名称":d.name,"分类":d.category,"指标定义":d.notes||"","SQL 代码":d.sql||""
   }));
   const ws=XLSX.utils.json_to_sheet(data);
   const wb=XLSX.utils.book_new();
@@ -11223,14 +11224,15 @@ function exportExcel(){
   showToast("✅ 已导出 Excel "+state.data.length+" 条")
 }
 function downloadTemplate(){
-  const tpl=[
-    {id:"YC-001",name:"示例口径",category:"售前_线索商机",tags:"示例，模板",notes:"这是口径定义/指标说明",sql:"SELECT 1 AS example",owner:"",frequency:"T+1"}
-  ];
+  const cats=["售前_线索商机","售前_签约","售前_用车制度","售中_GMV","售中_单量","售中_客户","售中_账户","售中_价格","售后_体验","售后_结算","商旅_客户来源","商旅_客户特征","商旅_品类开通","商旅_平台使用费","商旅_充值授信","商旅_品类激活","商旅_对接方式","商旅_账户转化","商旅_客户活跃","商旅_管控特征","商旅_规模","商旅_品类结构","商旅_价格","商旅_覆盖率","商旅_服务质量","商旅_收益","商旅_归属"];
+  const tpl=[{name:"示例口径",category:"售前_线索商机",notes:"这是口径定义/指标说明",sql:"SELECT 1 AS example"}];
   const ws=XLSX.utils.json_to_sheet(tpl);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"模板");
+  const catList=ws["!data_validations"]={};
+  for(let r=2;r<100;r++){catList["C"+r]={type:"list",formula:'"'+cats.join(",")+'"'}}
   XLSX.writeFile(wb,"口径导入模板.xlsx");
-  showToast("📋 Excel 模板已下载")
+  showToast("📋 Excel 模板已下载，分类可下拉选择")
 }
 function openImport(){state.modalType='import';render()}
 function doImport(){
@@ -11250,19 +11252,22 @@ function importExcel(f){
       const data=XLSX.utils.sheet_to_json(ws);
       let a=0,u=0;
       data.forEach(i=>{
+        if(!i["名称"])return;
+        const maxId=state.data.filter(d=>d.id&&d.id.startsWith("YC-")).reduce((max,d)=>{
+          const n=parseInt(d.id.slice(3));return n>max?n:max;
+        },0);
         const item={
-          id:i["口径 ID"]||i["id"]||"",
-          name:i["名称"]||i["name"]||"",
-          category:i["分类"]||i["category"]||"",
-          tags:(i["标签"]||i["tags"]||"").split(/[,,]/).filter(Boolean),
-          notes:i["指标定义"]||i["notes"]||"",
-          sql:i["SQL 代码"]||i["sql"]||"",
-          owner:i["负责人"]||i["owner"]||"",
-          frequency:i["更新频率"]||i["frequency"]||"T+1",
+          id:"YC-"+String(maxId+1).padStart(3,"0"),
+          name:i["名称"]||"",
+          category:i["分类"]||"售前_线索商机",
+          tags:[],
+          notes:i["指标定义"]||"",
+          sql:i["SQL 代码"]||"",
+          owner:"",
+          frequency:"T+1",
           scenario:"",tables:""
         };
-        if(!item.id||!item.name)return;
-        const idx=state.data.findIndex(d=>d.id===item.id);
+        const idx=state.data.findIndex(d=>d.name===item.name);
         if(idx>=0){state.data[idx]=item;u++}else{state.data.push(item);a++}
       });
       saveData();showToast("✅ 新增"+a+"条，更新"+u+"条");closeModal()
