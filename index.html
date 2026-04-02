@@ -10987,7 +10987,7 @@ and unique_cid_flag = 1`
 ];
 
 
-let state={data:[],activeCategory:'all',searchQuery:'',expandedId:null,modalType:null,editingItem:null,toastMsg:null};
+let state={data:[],activeCategory:'all',searchQuery:'',expandedId:null,modalType:null,editingItem:null,toastMsg:null,pendingImport:null};
 
 function loadData(){
   try{const s=localStorage.getItem(STORAGE_KEY);if(s){state.data=JSON.parse(s)}else{state.data=[...DEFAULT_DATA];saveData()}}
@@ -11092,6 +11092,7 @@ function render(){
   let modalHtml='';
   if(state.modalType==='add'||state.modalType==='edit')modalHtml=renderFormModal();
   if(state.modalType==='import')modalHtml=renderImportModal();
+  if(state.modalType==='importConflict')modalHtml=renderConflictModal();
   const existingModal=document.getElementById('modal-container');
   if(existingModal){existingModal.innerHTML=modalHtml;if(!modalHtml)existingModal.remove()}
   else if(modalHtml){
@@ -11172,6 +11173,59 @@ function renderImportModal(){
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doImport()">确认导入</button></div>
   </div></div>`;
+}
+
+function renderConflictModal(){
+  const {conflicts,decisions}=state.pendingImport;
+  const rows=conflicts.map(c=>{
+    const dec=decisions[c.imported.name];
+    const nm=escHtml(c.imported.name);
+    const safeName=c.imported.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${nm}">${nm}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">与已有条目 <b style="color:var(--accent)">${escHtml(c.existing.id)}</b>「${escHtml(c.existing.name)}」同名</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn ${dec==='overwrite'?'btn-primary':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision('${safeName}','overwrite')">覆盖</button>
+        <button class="btn ${dec==='ignore'?'btn-danger':'btn-ghost'}" style="font-size:11px;padding:3px 10px" onclick="setConflictDecision('${safeName}','ignore')">忽略</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="modal-overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()" style="width:540px">
+    <div class="modal-header"><h2>发现重复口径</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">以下 <b>${conflicts.length}</b> 条口径与已有数据同名，请选择处理方式（默认忽略）：</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn btn-ghost" style="font-size:11px" onclick="setAllConflictDecision('overwrite')">全部覆盖</button>
+        <button class="btn btn-ghost" style="font-size:11px" onclick="setAllConflictDecision('ignore')">全部忽略</button>
+      </div>
+      <div style="max-height:340px;overflow-y:auto">${rows}</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="confirmImport()">确认导入</button></div>
+  </div></div>`;
+}
+function setConflictDecision(name,decision){
+  if(state.pendingImport)state.pendingImport.decisions[name]=decision;
+  render();
+}
+function setAllConflictDecision(decision){
+  if(state.pendingImport)Object.keys(state.pendingImport.decisions).forEach(k=>state.pendingImport.decisions[k]=decision);
+  render();
+}
+function confirmImport(){
+  if(!state.pendingImport)return;
+  const {newItems,conflicts,decisions}=state.pendingImport;
+  let a=newItems.length,u=0;
+  newItems.forEach(item=>state.data.push(item));
+  conflicts.forEach(c=>{
+    if(decisions[c.imported.name]==='overwrite'){
+      const idx=state.data.findIndex(d=>d.name===c.imported.name);
+      if(idx>=0){state.data[idx]=c.imported;u++;}
+    }
+  });
+  state.pendingImport=null;
+  saveData();showToast("✅ 新增"+a+"条，更新"+u+"条");closeModal();
 }
 
 function setCategory(c){state.activeCategory=c;state.searchQuery='';state.expandedId=null;render()}
@@ -11276,46 +11330,57 @@ function importExcel(f){
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws);
-      let a=0,u=0,errRow=0;
+      const newItems=[],conflicts=[];
+      let errRow=0,baseMaxId=state.data.filter(d=>d.id&&d.id.startsWith("YC-")).reduce((max,d)=>{const n=parseInt(d.id.slice(3));return n>max?n:max;},0);
       for(let i=0;i<data.length;i++){
         const row=data[i];
         const name=row["口径名称"]||row["口径名称 "]||"";
         const notes=row["指标定义"]||row["指标定义 "]||"";
         const sql=row["SQL 代码"]||row["SQL 代码 "]||"";
         if(!name||!notes||!sql){errRow=i+2;break;}
-        const maxId=state.data.filter(d=>d.id&&d.id.startsWith("YC-")).reduce((max,d)=>{
-          const n=parseInt(d.id.slice(3));return n>max?n:max;
-        },0);
         const category=autoDetectCategory(name,notes);
+        baseMaxId++;
         const item={
-          id:"YC-"+String(maxId+1).padStart(3,"0"),
-          name:name,
-          category:category,
-          tags:[],
-          notes:notes,
-          sql:sql,
-          owner:"",
-          frequency:"T+1",
-          scenario:"",tables:""
+          id:"YC-"+String(baseMaxId).padStart(3,"0"),
+          name:name,category:category,tags:[],notes:notes,sql:sql,
+          owner:"",frequency:"T+1",scenario:"",tables:""
         };
-        const idx=state.data.findIndex(d=>d.name===item.name);
-        if(idx>=0){state.data[idx]=item;u++}else{state.data.push(item);a++}
+        const existing=state.data.find(d=>d.name===item.name);
+        if(existing){conflicts.push({imported:item,existing});}
+        else{newItems.push(item);}
       }
-      if(errRow>0){
-        alert("第"+errRow+"行数据不完整，口径名称/指标定义/SQL 代码 不能为空");
-        return
+      if(errRow>0){alert("第"+errRow+"行数据不完整，口径名称/指标定义/SQL 代码 不能为空");return;}
+      if(conflicts.length>0){
+        const decisions={};conflicts.forEach(c=>{decisions[c.imported.name]='ignore';});
+        state.pendingImport={newItems,conflicts,decisions};
+        state.modalType='importConflict';render();
+      }else{
+        newItems.forEach(item=>state.data.push(item));
+        saveData();showToast("✅ 新增"+newItems.length+"条");closeModal();
       }
-      saveData();showToast("✅ 新增"+a+"条，更新"+u+"条");closeModal()
     }catch(err){alert("解析失败："+err.message)}
   };r.readAsArrayBuffer(f)
 }
 function importJson(f){
   const r=new FileReader();r.onload=function(e){
-    try{const imp=JSON.parse(e.target.result);if(!Array.isArray(imp))throw new Error("格式错误");
-      let a=0,u=0;imp.forEach(i=>{if(!i.id||!i.name)return;const idx=state.data.findIndex(d=>d.id===i.id);
-        if(idx>=0){state.data[idx]=i;u++}else{state.data.push(i);a++}});
-      saveData();showToast("✅ 新增"+a+"条，更新"+u+"条");closeModal()
-    }catch(err){alert("解析失败："+err.message)}};r.readAsText(f)
+    try{
+      const imp=JSON.parse(e.target.result);if(!Array.isArray(imp))throw new Error("格式错误");
+      const newItems=[],conflicts=[];
+      imp.forEach(i=>{if(!i.id||!i.name)return;
+        const existing=state.data.find(d=>d.name===i.name);
+        if(existing){conflicts.push({imported:i,existing});}
+        else{newItems.push(i);}
+      });
+      if(conflicts.length>0){
+        const decisions={};conflicts.forEach(c=>{decisions[c.imported.name]='ignore';});
+        state.pendingImport={newItems,conflicts,decisions};
+        state.modalType='importConflict';render();
+      }else{
+        newItems.forEach(i=>state.data.push(i));
+        saveData();showToast("✅ 新增"+newItems.length+"条");closeModal();
+      }
+    }catch(err){alert("解析失败："+err.message)}
+  };r.readAsText(f)
 }
 
 async function uploadToGitHub(){
