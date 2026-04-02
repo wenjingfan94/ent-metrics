@@ -30,13 +30,14 @@
   --radius-lg: 14px;
   --font-body: 'Noto Sans SC', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+  --scale: 1.15;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
-body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-primary)}
+html,body{height:100%;overflow:hidden;font-size:var(--scale)}
+body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-primary);font-size:calc(14px * var(--scale));transform-origin:top left}
 
 .app{display:flex;height:100vh}
-.sidebar{width:250px;min-width:250px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.sidebar{width:290px;min-width:290px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
 .sidebar-header{padding:24px 18px 16px;border-bottom:1px solid var(--border)}
 .sidebar-header h1{font-size:15px;font-weight:900;background:linear-gradient(135deg,#6C5CE7,#a29bfe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
 .sidebar-header .subtitle{font-size:11px;color:var(--text-muted)}
@@ -87,7 +88,7 @@ body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-pri
 .tag{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--bg-input);color:var(--text-muted);font-weight:500}
 .card-def{font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:12px;border-left:3px solid var(--orange);background:rgba(253,171,61,.08);color:var(--orange);line-height:1.7}
 .code-block{position:relative;background:var(--bg-code);border-radius:8px;border:1px solid var(--border);overflow:hidden}
-.code-block pre{padding:14px;margin:0;overflow-x:auto;font-family:var(--font-mono);font-size:11.5px;line-height:1.65;color:#ABB2BF;white-space:pre;tab-size:4}
+.code-block pre{padding:14px;margin:0;overflow-x:auto;font-family:var(--font-mono);font-size:13px;line-height:1.65;color:#ABB2BF;white-space:pre;tab-size:4}
 .copy-btn{position:absolute;top:7px;right:7px;padding:4px 10px;border-radius:5px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s;z-index:2}
 .copy-btn:hover{border-color:var(--accent);color:var(--accent)}
 .copy-btn.copied{background:var(--green);color:#fff;border-color:var(--green)}
@@ -95,7 +96,7 @@ body{font-family:var(--font-body);background:var(--bg-root);color:var(--text-pri
 .kw{color:#C678DD;font-weight:600}.str{color:#98C379}.cmt{color:#5C6370;font-style:italic}.num{color:#D19A66}.var{color:#E06C75;font-weight:600}.fn{color:#61AFEF}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);animation:fadeIn .15s ease}
-.modal{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .2s ease}
+.modal{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-lg);width:800px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .2s ease}
 .modal-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .modal-header h2{font-size:15px;font-weight:700}
 .modal-close{width:28px;height:28px;border-radius:7px;background:var(--bg-card);border:none;color:var(--text-muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
@@ -11150,22 +11151,11 @@ function renderFormModal(){
 }
 
 function renderImportModal(){
-  return `<div class="modal-overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()" style="width:550px">
+  return `<div class="modal-overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()" style="width:500px">
     <div class="modal-header"><h2>导入口径数据</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7">选择 <b>.json</b> 文件导入。支持两种导入模式：</p>
-      <div style="background:var(--bg-input);padding:12px;border-radius:8px;margin-bottom:14px">
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
-          <input type="radio" name="importMode" value="merge" checked style="width:16px;height:16px" />
-          <span style="font-size:13px;font-weight:600">智能合并</span>
-          <span style="font-size:11px;color:var(--text-muted)">同 ID 覆盖，新 ID 追加，原有保留</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="radio" name="importMode" value="replace" style="width:16px;height:16px" />
-          <span style="font-size:13px;font-weight:600">全部覆盖（批量导入）</span>
-          <span style="font-size:11px;color:var(--text-muted)">清空现有数据，仅保留导入内容</span>
-        </label>
-      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.7">
+        选择 <b>.json</b> 文件导入。按 ID 智能合并：同 ID 覆盖，新 ID 追加，原有保留。</p>
       <input type="file" id="impF" accept=".json" style="display:block;width:100%;padding:10px;background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;color:var(--text-primary);cursor:pointer;font-family:var(--font-body)" />
       <p style="font-size:11px;color:var(--text-muted);margin-top:12px">💡 提示：先下载模板文件，按格式填写后再导入</p>
     </div>
@@ -11220,17 +11210,11 @@ function downloadTemplate(){
 function openImport(){state.modalType='import';render()}
 function doImport(){
   const f=document.getElementById('impF')?.files?.[0];if(!f){alert('请选文件');return}
-  const mode=document.querySelector('input[name="importMode"]:checked')?.value||'merge';
   const r=new FileReader();r.onload=function(e){
     try{const imp=JSON.parse(e.target.result);if(!Array.isArray(imp))throw new Error('格式错误');
-      if(mode==='replace'){
-        state.data=imp.filter(i=>i.id&&i.name);
-        saveData();showToast('✅ 已覆盖导入 '+state.data.length+' 条数据');closeModal();render()
-      }else{
-        let a=0,u=0;imp.forEach(i=>{if(!i.id||!i.name)return;const idx=state.data.findIndex(d=>d.id===i.id);
-          if(idx>=0){state.data[idx]=i;u++}else{state.data.push(i);a++}});
-        saveData();showToast('✅ 新增'+a+'条，更新'+u+'条');closeModal()
-      }
+      let a=0,u=0;imp.forEach(i=>{if(!i.id||!i.name)return;const idx=state.data.findIndex(d=>d.id===i.id);
+        if(idx>=0){state.data[idx]=i;u++}else{state.data.push(i);a++}});
+      saveData();showToast('✅ 新增'+a+'条，更新'+u+'条');closeModal()
     }catch(err){alert('解析失败：'+err.message)}};r.readAsText(f)
 }
 
