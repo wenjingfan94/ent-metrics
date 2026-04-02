@@ -4417,5 +4417,18 @@
     "updated": "2026-04-02",
     "notes": "",
     "sql": "111"
+  },
+  {
+    "id": "YC-147",
+    "name": "用车自费GMV",
+    "category": "售中_GMV",
+    "tags": [],
+    "scenario": "",
+    "tables": "",
+    "frequency": "T+1",
+    "owner": "",
+    "updated": "2026-04-02",
+    "notes": "",
+    "sql": "SELECT tblOrder.finish_month\n        , SUM(tblOrder.total_price) AS didi_gmv   -- 滴滴用车GMV\nFROM (   \n    -- 企业级订单全量，算总GMV \n    SELECT company_id\n            , SUBSTR(finish_time, 1, 7) AS finish_month\n            , SUM(total_price) AS total_price\n    FROM   es_dw.dwd_ent_trd_travel_order_df\n    WHERE  dt = DATE_SUB(CURRENT_DATE, 1)\n            AND SUBSTR(finish_time, 1, 10) between '${date_begin}' and '${date_end}'\n            AND pay_type =1 \n            AND  reimbursement_flag = 0\n            AND status NOT IN (1)\n    GROUP BY company_id\n              , SUBSTR(finish_time, 1, 7)\n) AS tblOrder\n\nJOIN (\n    SELECT company_id\n            , dt_belong\n    FROM   es_dw.dim_ent_user_company_belong  -- 流失前归属表\n    WHERE  dt = DATE_SUB(CURRENT_DATE, 1)\n            AND dc_l2_department = '！滴滴'\n            AND is_curr_belong = 1          -- 标识是否销售易上的客户归属 1是 0否, 否一般是合作打单或是业绩归属其他团队的情况\n) AS tblTeams \nON tblOrder.company_id = tblTeams.company_id\n    AND tblOrder.finish_month = tblTeams.dt_belong\nGROUP BY tblOrder.finish_month"
   }
 ]
