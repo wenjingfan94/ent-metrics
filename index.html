@@ -11162,7 +11162,8 @@ function renderImportModal(){
         支持 <b>Excel(.xlsx)</b> 或 <b>JSON</b> 格式文件。</p>
       <p style="font-size:11px;color:var(--accent);margin-bottom:10px">📌 Excel 列名：口径名称 | 指标定义 | SQL 代码</p>
       <p style="font-size:11px;color:#FDAB3D">⚠️ 三列都不能为空，否则导入失败</p>
-      <input type="file" id="impF" accept=".json" style="display:block;width:100%;padding:10px;background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;color:var(--text-primary);cursor:pointer;font-family:var(--font-body)" />
+      <p style="font-size:11px;color:var(--text-muted)">💡 分类根据名称/定义自动判断</p>
+      <input type="file" id="impF" accept=".json,.xlsx,.xls" style="display:block;width:100%;padding:10px;background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;color:var(--text-primary);cursor:pointer;font-family:var(--font-body)" />
       <p style="font-size:11px;color:var(--text-muted);margin-top:12px">💡 提示：先下载模板文件，按格式填写后再导入</p>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doImport()">确认导入</button></div>
@@ -11241,6 +11242,30 @@ function doImport(){
     importJson(f)
   }
 }
+function autoDetectCategory(name,notes){
+  const text=(name+" "+notes).toLowerCase();
+  const cats=["商旅","售中_GMV","售中_单量","售中_客户","售中_账户","售中_价格","售后_体验","售后_结算","售前_线索商机","售前_签约","售前_用车制度"];
+  for(const c of cats){
+    if(c==="商旅"&&(text.includes("商旅")||text.includes("机票")||text.includes("酒店")||text.includes("火车"))){return "商旅_收益"}
+    if(text.includes(c.toLowerCase())){
+      if(c.startsWith("售中")){return c}
+      if(c.startsWith("售后")){return c}
+      if(c.startsWith("售前")){return c}
+    }
+  }
+  // 默认按关键词匹配
+  if(text.includes("gmv")||text.includes("成交")){return "售中_GMV"}
+  if(text.includes("单量")||text.includes("订单")||text.includes("完单")){return "售中_单量"}
+  if(text.includes("客户")||text.includes("公司")){return "售中_客户"}
+  if(text.includes("账户")||text.includes("激活")||text.includes("活跃")){return "售中_账户"}
+  if(text.includes("价格")||text.includes("cpm")||text.includes("成本")){return "售中_价格"}
+  if(text.includes("体验")||text.includes("应答")||text.includes("满足率")){return "售后_体验"}
+  if(text.includes("结算")||text.includes("收入")||text.includes("毛利率")){return "售后_结算"}
+  if(text.includes("线索")||text.includes("mal")||text.includes("mql")||text.includes("sql")||text.includes("商机")){return "售前_线索商机"}
+  if(text.includes("合同")||text.includes("签约")||text.includes("赢单")){return "售前_签约"}
+  if(text.includes("制度")||text.includes("配置")||text.includes("规则")){return "售前_用车制度"}
+  return "售前_线索商机"
+}
 function importExcel(f){
   const r=new FileReader();r.onload=function(e){
     try{
@@ -11257,10 +11282,11 @@ function importExcel(f){
         const maxId=state.data.filter(d=>d.id&&d.id.startsWith("YC-")).reduce((max,d)=>{
           const n=parseInt(d.id.slice(3));return n>max?n:max;
         },0);
+        const category=autoDetectCategory(name,notes);
         const item={
           id:"YC-"+String(maxId+1).padStart(3,"0"),
           name:name,
-          category:"售前_线索商机",
+          category:category,
           tags:[],
           notes:notes,
           sql:sql,
