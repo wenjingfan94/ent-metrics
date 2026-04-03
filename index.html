@@ -11211,11 +11211,13 @@ function setConflictDecision(idx,decision){
     const name=state.pendingImport.conflicts[idx].imported.name;
     state.pendingImport.decisions[name]=decision;
   }
-  render();
+  const c=document.getElementById('modal-container');
+  if(c)c.innerHTML=renderConflictModal();
 }
 function setAllConflictDecision(decision){
   if(state.pendingImport)Object.keys(state.pendingImport.decisions).forEach(k=>state.pendingImport.decisions[k]=decision);
-  render();
+  const c=document.getElementById('modal-container');
+  if(c)c.innerHTML=renderConflictModal();
 }
 function confirmImport(){
   if(!state.pendingImport)return;
